@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import React, { useState, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Bars3Icon, 
   BellIcon, 
   MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  LanguageIcon
 } from '@heroicons/react/24/outline'
 import { Menu, Transition } from '@headlessui/react'
+import { useTranslation } from 'react-i18next'
+import LanguageSwitcher from '../ui/LanguageSwitcher'
 
 interface HeaderProps {
   toggleSidebar: () => void
@@ -46,6 +49,8 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
         {/* البحث والإشعارات وقائمة المستخدم */}
         <div className="flex items-center space-x-4 space-x-reverse">
+          {/* مبدل اللغة */}
+          <LanguageSwitcher />
           {/* حالة الاتصال */}
           <button
             onClick={toggleOnlineStatus}
@@ -83,6 +88,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             </Menu.Button>
 
             <Transition
+              as={Fragment}
               enter="transition duration-100 ease-out"
               enterFrom="transform scale-95 opacity-0"
               enterTo="transform scale-100 opacity-100"

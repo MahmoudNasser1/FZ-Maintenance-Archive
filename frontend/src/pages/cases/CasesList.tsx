@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
-  PlusIcon
+  PlusIcon,
+  QrCodeIcon
 } from '@heroicons/react/24/outline'
 import CasesTable, { Case } from '../../components/cases/CasesTable'
 import CasesFilterBar from '../../components/cases/CasesFilterBar'
+import CaseQRCodeManager from '../../components/cases/CaseQRCodeManager'
+import { CaseItem } from '../../services/offlineStorage'
+import Modal from '../../components/ui/Modal'
 
 // الصفحة الرئيسية لعرض قائمة حالات الصيانة
 const CasesList = () => {
+  const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [sortField, setSortField] = useState<keyof Case>('createdAt')
@@ -21,6 +27,8 @@ const CasesList = () => {
     clientName?: string
   }>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [showQRScannerModal, setShowQRScannerModal] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
   
   // بيانات توضيحية للحالات (في التطبيق الفعلي ستأتي من API)
   const casesData: Case[] = [
@@ -228,28 +236,68 @@ const CasesList = () => {
             />
           </div>
           
+          {/* زر مسح رمز QR */}
+          <button
+            onClick={() => setShowQRScannerModal(true)}
+            className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            <QrCodeIcon className="h-5 w-5 ml-2 text-gray-500" />
+            {t('qrCode.scanQr')}
+          </button>
+          
           {/* زر إضافة حالة جديدة */}
           <Link to="/cases/new" className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
             <PlusIcon className="h-5 w-5 ml-2" />
-            إضافة حالة جديدة
-          </Link>
-        </div>
-      </div>
-      
-      {/* لوحة الفلترة */}
-      <CasesFilterBar onFilterApply={handleFilterApply} />
-      
-      {/* جدول الحالات */}
-      <CasesTable
-        cases={paginatedCases}
-        isLoading={isLoading}
-        onSort={handleSort}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        page={currentPage}
-        totalPages={totalPages}
         onPageChange={handlePageChange}
       />
+      
+      {/* منبثق ماسح رمز QR */}
+      <Modal
+        isOpen={showQRScannerModal}
+        onClose={() => {
+          setShowQRScannerModal(false);
+          setScanError(null);
+        }}
+        title={t('qrCode.scanQrCode')}
+        size="md"
+      >
+        <div className="p-4">
+          <p className="mb-4 text-sm text-gray-600">{t('qrCode.scanToFindCase')}</p>
+          
+          {/* مكون ماسح رمز QR */}
+          <CaseQRCodeManager
+            onScanSuccess={(data) => {
+              try {
+                // محاولة تحليل البيانات المقروءة
+                const scannedData = JSON.parse(data);
+                
+                // التحقق من أن البيانات تحتوي على معرف الحالة والنوع الصحيح
+                if (scannedData.id && scannedData.type === 'maintenance_case') {
+                  // إغلاق النافذة المنبثقة
+                  setShowQRScannerModal(false);
+                  
+                  // الانتقال إلى صفحة تفاصيل الحالة
+                  navigate(`/cases/${scannedData.id}`);
+                } else {
+                  setScanError(t('qrCode.invalidQrData'));
+                }
+              } catch (error) {
+                setScanError(t('qrCode.errorReadingQr'));
+              }
+            }}
+            onScanError={(error) => {
+              setScanError(error);
+            }}
+            scannerOnly
+          />
+          
+          {scanError && (
+            <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md">
+              <p className="text-sm font-medium">{scanError}</p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

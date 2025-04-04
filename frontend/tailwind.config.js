@@ -29,7 +29,7 @@ module.exports = {
           500: '#6B7280',
           600: '#4B5563',
           700: '#374151',
-          800: '#1F2937', // لون النص الرئيسي
+          800: '#1F2937',
           900: '#111827',
           950: '#030712',
         },
@@ -44,12 +44,58 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Cairo', 'sans-serif'],
+        'cairo': ['Cairo', 'sans-serif'],
+      },
+      // إضافة دعم للاتجاه RTL
+      textAlign: {
+        'start': 'start',
+        'end': 'end',
+      },
+      margin: {
+        'start': 'margin-inline-start',
+        'end': 'margin-inline-end',
+      },
+      padding: {
+        'start': 'padding-inline-start',
+        'end': 'padding-inline-end',
+      },
+      inset: {
+        'start': 'inset-inline-start',
+        'end': 'inset-inline-end',
+      },
+      borderRadius: {
+        'ts': 'border-start-start-radius',
+        'te': 'border-start-end-radius',
+        'bs': 'border-end-start-radius',
+        'be': 'border-end-end-radius',
       },
       direction: {
         'rtl': 'rtl',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // إضافة معدل للتعامل مع RTL بشكل أفضل
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.flip-x': {
+          '--tw-scale-x': '-1',
+          'transform': 'var(--tw-transform)',
+        },
+        '.dir-rtl': {
+          'direction': 'rtl',
+        },
+        '.dir-ltr': {
+          'direction': 'ltr',
+        },
+        '.text-right-if-rtl': {
+          'text-align': 'var(--text-align, right)',
+        },
+        '.text-left-if-rtl': {
+          'text-align': 'var(--text-align, left)',
+        }
+      };
+      addUtilities(newUtilities);
+    }
+  ],
 }

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   ArrowUturnLeftIcon, 
   PencilSquareIcon, 
   ChatBubbleLeftIcon,
   PaperClipIcon,
   ClockIcon,
-  ListBulletIcon
+  ListBulletIcon,
+  QrCodeIcon
 } from '@heroicons/react/24/outline'
 
 // استيراد المكونات
@@ -16,7 +18,9 @@ import NotesTab, { Note } from '../../components/cases/NotesTab'
 import AttachmentsTab, { Attachment } from '../../components/cases/AttachmentsTab'
 import ActivityLogTab, { Activity } from '../../components/cases/ActivityLogTab'
 import WorkLogTab, { WorkLog } from '../../components/cases/WorkLogTab'
+import CaseQRCodeManager from '../../components/cases/CaseQRCodeManager'
 import LoadingScreen from '../../components/common/LoadingScreen'
+import { CaseItem } from '../../services/offlineStorage'
 
 // بيانات توضيحية (في التطبيق الفعلي ستأتي من API)
 const mockCaseData: CaseData = {
@@ -154,9 +158,10 @@ const mockWorkLogs: WorkLog[] = [
  * صفحة تفاصيل حالة الصيانة
  * تعرض معلومات الحالة وتتيح التفاعل معها
  */
-const CaseDetails: React.FC = () => {
-  const { id } = useParams<{ id: string }>()
+const CaseDetails = () => {
+  const { id } = useParams<{id: string}>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   
   // حالة البيانات
   const [caseData, setCaseData] = useState<CaseData | null>(null)
@@ -491,7 +496,7 @@ const CaseDetails: React.FC = () => {
           <p className="text-sm text-gray-500">{caseData.serialNumber} • {caseData.clientName}</p>
         </div>
         
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex space-x-2 rtl:space-x-reverse">
           <button
             onClick={handleEdit}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -499,6 +504,32 @@ const CaseDetails: React.FC = () => {
             <PencilSquareIcon className="ml-2 h-5 w-5 text-gray-500" />
             تعديل الحالة
           </button>
+          
+          {/* إضافة زر QR Code */}
+          <div className="mr-2">
+            {/* تحويل بيانات الحالة إلى تنسيق CaseItem */}
+            {caseData && 
+              <CaseQRCodeManager
+                caseData={{
+                  id: parseInt(id as string),
+                  title: caseData.deviceModel,
+                  clientName: caseData.clientName,
+                  clientPhone: caseData.clientPhone,
+                  deviceType: 'electronics', // نفترض قيمة افتراضية
+                  deviceModel: caseData.deviceModel,
+                  status: caseData.status,
+                  issueDescription: caseData.issueDescription,
+                  createdAt: caseData.createdAt,
+                  updatedAt: caseData.updatedAt,
+                  needsSync: false,
+                  serialNumber: caseData.serialNumber,
+                  technicianName: caseData.technicianName,
+                  diagnosis: caseData.diagnosis,
+                  solution: caseData.solution
+                }}
+              />
+            }
+          </div>
         </div>
       </div>
       
@@ -511,8 +542,41 @@ const CaseDetails: React.FC = () => {
       </div>
       
       {/* علامات التبويب */}
-      <div>
+      <div className="mb-6">
         <TabsContainer tabs={tabs} defaultTabId="notes" />
+      </div>
+      
+      {/* قسم طباعة رمز QR */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h3 className="text-lg font-medium mb-4">
+          <QrCodeIcon className="inline-block h-5 w-5 ml-2" />
+          {t('qrCode.qrCodeForPrinting')}
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">{t('qrCode.printingDescription')}</p>
+        
+        {caseData && 
+          <CaseQRCodeManager
+            caseData={{
+              id: parseInt(id as string),
+              title: caseData.deviceModel,
+              clientName: caseData.clientName,
+              clientPhone: caseData.clientPhone,
+              deviceType: 'electronics', // نفترض قيمة افتراضية
+              deviceModel: caseData.deviceModel,
+              status: caseData.status,
+              issueDescription: caseData.issueDescription,
+              createdAt: caseData.createdAt,
+              updatedAt: caseData.updatedAt,
+              needsSync: false,
+              serialNumber: caseData.serialNumber,
+              technicianName: caseData.technicianName,
+              diagnosis: caseData.diagnosis,
+              solution: caseData.solution
+            }}
+            inline={true}
+            size={250}
+          />
+        }
       </div>
     </div>
   )
