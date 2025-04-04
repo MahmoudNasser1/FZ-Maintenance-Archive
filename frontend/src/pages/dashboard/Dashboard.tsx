@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   ClipboardDocumentCheckIcon,
@@ -11,6 +11,7 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/solid'
+import MaintenanceChart from '../../components/dashboard/MaintenanceChart'
 
 // مكون لعرض البطاقة الإحصائية
 interface StatCardProps {
@@ -188,6 +189,9 @@ const Dashboard: React.FC = () => {
     }
   ]
 
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line')
+  const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+
   return (
     <div className="py-10">
       <h1 className="text-2xl font-bold mb-6">لوحة التحكم</h1>
@@ -218,14 +222,30 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* الرسم البياني */}
         <div className="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
-          <h2 className="text-lg font-bold mb-4">أداء الأسبوع</h2>
-          <div className="h-64 flex items-center justify-center border border-dashed border-gray-300 rounded-lg">
-            <div className="text-center">
-              <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm text-gray-500">سيتم هنا عرض رسم بياني للأداء</p>
-              <p className="text-xs text-gray-400">باستخدام Chart.js</p>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold">أداء الأسبوع</h2>
+            <div className="flex space-x-2 space-x-reverse">
+              <select 
+                className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                value={chartType}
+                onChange={(e) => setChartType(e.target.value as 'line' | 'bar')}
+              >
+                <option value="line">خط بياني</option>
+                <option value="bar">رسم شريطي</option>
+              </select>
+              <select 
+                className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-500 mr-2"
+                value={chartPeriod}
+                onChange={(e) => setChartPeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+              >
+                <option value="daily">يومي</option>
+                <option value="weekly">أسبوعي</option>
+                <option value="monthly">شهري</option>
+              </select>
             </div>
           </div>
+          {/* استخدام مكون المخطط البياني */}
+          <MaintenanceChart type={chartType} period={chartPeriod} />
         </div>
 
         {/* النصائح والموارد */}

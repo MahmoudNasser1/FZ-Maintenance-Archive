@@ -10,7 +10,6 @@ from app.models.case import CaseStatus
 from app.schemas.case import CaseCreate, CaseUpdate, Case as CaseSchema, CaseList, CaseDetail
 from app.services.activity_service import create_activity
 from app.services.enhanced_notification_service import (
-    send_notification,
     send_status_change_notification,
     send_technician_assignment_notification,
     send_case_notification

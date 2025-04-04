@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, ForeignKey, Enum
+from sqlalchemy import Column, String, Text, ForeignKey, Enum, Float, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import enum
@@ -7,11 +7,20 @@ from app.models.base import BaseModel
 
 
 class CaseStatus(str, enum.Enum):
-    IN_PROGRESS = "قيد الإصلاح"
-    FIXED = "تم الإصلاح"
-    WAITING_PARTS = "بانتظار القطعة"
-    DELIVERED = "تم التسليم"
-    CANCELLED = "ملغى"
+    new = "جديد"
+    assigned = "معيّن"
+    in_progress = "قيد الإصلاح"
+    waiting_parts = "بانتظار القطعة"
+    resolved = "تم الإصلاح"
+    delivered = "تم التسليم"
+    cancelled = "ملغى"
+
+
+class CasePriority(str, enum.Enum):
+    low = "منخفضة"
+    medium = "متوسطة"
+    high = "عالية"
+    urgent = "عاجلة"
 
 
 class Case(BaseModel):
@@ -19,20 +28,31 @@ class Case(BaseModel):
     
     __tablename__ = "cases"
 
+    case_number = Column(String(50), nullable=True, index=True)
     device_model = Column(String(100), nullable=False, index=True)
+    device_type = Column(String(100), nullable=True)
     serial_number = Column(String(100), unique=True, index=True)
     client_name = Column(String(100), nullable=False, index=True)
     client_phone = Column(String(20), nullable=True)
+    client_email = Column(String(100), nullable=True)
     issue_description = Column(Text, nullable=False)
     diagnosis = Column(Text, nullable=True)
     solution = Column(Text, nullable=True)
     status = Column(
         Enum(CaseStatus), 
         nullable=False, 
-        default=CaseStatus.IN_PROGRESS,
+        default=CaseStatus.new,
         index=True
     )
-    technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    priority = Column(
+        Enum(CasePriority),
+        nullable=True,
+        default=CasePriority.medium,
+        index=True
+    )
+    technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    cost = Column(Float, nullable=True)
+    customer_satisfaction = Column(Integer, nullable=True)  # تقييم من 1 إلى 5
     
     # Relationships
     technician = relationship("User", backref="cases")

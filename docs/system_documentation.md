@@ -119,14 +119,20 @@ frontend/
 ### 2. نموذج حالة الصيانة (Case)
 
 - `id`: UUID - المعرف الفريد لحالة الصيانة
+- `case_number`: String - رقم الحالة
 - `device_model`: String - موديل الجهاز
+- `device_type`: String - نوع الجهاز
 - `serial_number`: String - الرقم التسلسلي للجهاز
 - `client_name`: String - اسم العميل
 - `client_phone`: String - رقم هاتف العميل
+- `client_email`: String - البريد الإلكتروني للعميل
 - `issue_description`: Text - وصف المشكلة
 - `diagnosis`: Text - التشخيص
 - `solution`: Text - الحل
-- `status`: Enum - حالة الصيانة (قيد الإصلاح، تم الإصلاح، بانتظار القطعة، إلخ)
+- `status`: Enum - حالة الصيانة (جديدة، قيد الإصلاح، تم الإصلاح، بانتظار القطعة، إلخ)
+- `priority`: Enum - أولوية الحالة (منخفضة، متوسطة، عالية، عاجلة)
+- `cost`: Float - تكلفة الإصلاح
+- `customer_satisfaction`: Integer - تقييم رضا العميل (1-5)
 - `technician_id`: UUID - معرف الفني المسؤول
 - `created_at`: DateTime - تاريخ الإنشاء
 - `updated_at`: DateTime - تاريخ آخر تحديث
@@ -211,6 +217,23 @@ frontend/
 - `GET /api/v1/cases/by-serial/{serial_number}` - استرجاع حالة صيانة عن طريق الرقم التسلسلي
 - `GET /api/v1/cases/by-client/{client_name}` - استرجاع حالات الصيانة عن طريق اسم العميل
 
+### العمليات الدفعية للحالات (Batch Operations)
+
+- `PUT /api/v1/cases/batch/status` - تحديث حالة مجموعة من الحالات دفعة واحدة
+- `PUT /api/v1/cases/batch/assign` - تعيين فني لمجموعة من الحالات دفعة واحدة
+- `DELETE /api/v1/cases/batch` - حذف مجموعة من الحالات دفعة واحدة
+
+### إحصائيات الحالات (Cases Statistics)
+
+- `GET /api/v1/cases/stats/status-distribution` - توزيع الحالات حسب الحالة
+- `GET /api/v1/cases/stats/time-series` - بيانات سلسلة زمنية للحالات
+- `GET /api/v1/cases/stats/technician-performance` - إحصائيات أداء الفنيين
+- `GET /api/v1/cases/stats/device-distribution` - توزيع أنواع الأجهزة
+- `GET /api/v1/cases/stats/resolution-time` - إحصائيات وقت حل الحالات (متوسط، أدنى، أقصى)
+- `GET /api/v1/cases/stats/revenue` - إحصائيات الإيرادات (إجمالي، متوسط، توزيع حسب الحالة)
+- `GET /api/v1/cases/stats/customer-satisfaction` - تحليل رضا العملاء (متوسط، توزيع)
+- `GET /api/v1/cases/stats/cases-by-priority` - توزيع الحالات حسب الأولوية
+
 ## خدمات النظام
 
 تم تطوير الخدمات التالية:
@@ -219,6 +242,14 @@ frontend/
 
 - `create_activity` - إنشاء سجل نشاط لحالة صيانة
 - `get_case_activities` - استرجاع أنشطة حالة صيانة محددة
+
+### خدمة الإشعارات المعززة (Enhanced Notification Service)
+
+- `send_notification` - إرسال إشعار لمستخدم
+- `send_case_notification` - إرسال إشعار متعلق بحالة
+- `send_status_change_notification` - إرسال إشعار عند تغيير حالة
+- `send_technician_assigned_notification` - إرسال إشعار عند تعيين فني
+- `send_batch_notifications` - إرسال إشعارات متعددة دفعة واحدة
 
 ## نظام المصادقة
 
@@ -235,17 +266,28 @@ frontend/
 
 ## الخطوات التالية
 
-1. استكمال تطوير باقي نقاط النهاية API:
-   - المرفقات
-   - الملاحظات
-   - سجلات العمل
-   - الإشعارات
+1. ✅ استكمال تطوير نقاط النهاية API الرئيسية:
+   - ✅ حالات الصيانة
+   - ✅ النماذج والمخططات
+   - ✅ العمليات الدفعية
+   - ✅ الإحصائيات المتقدمة
+   - ✅ نظام الإشعارات
 
 2. تطوير واجهة المستخدم:
-   - إعداد React مع TailwindCSS
-   - تطوير الصفحات والمكونات الأساسية
-   - ربط الواجهة مع API
+   - إعداد مكونات لعرض الإحصائيات والرسوم البيانية
+   - دمج نظام الإشعارات في واجهة المستخدم
+   - تحديث نماذج إنشاء وتحرير الحالات لتشمل الحقول الجديدة
 
-3. تطوير دعم العمل بدون اتصال:
-   - إعداد IndexedDB
-   - تطوير آلية المزامنة
+3. تحديث قاعدة البيانات:
+   - إنشاء وتنفيذ مخطط ترحيل (migration) لتعكس التغييرات في نموذج البيانات
+
+4. اختبار شامل للنظام:
+   - اختبار نقاط نهاية الإحصائيات الجديدة
+   - اختبار نظام الإشعارات المحسن
+   - اختبار العمليات الدفعية
+
+5. ميزات مستقبلية:
+   - تصدير البيانات والتقارير (PDF، Excel)
+   - لوحة تحكم مخصصة للمديرين
+   - تحسين أمان API
+   - المزيد من تحليلات البيانات والتنبؤات
