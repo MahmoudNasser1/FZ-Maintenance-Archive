@@ -16,6 +16,8 @@ const ProfilePage = lazy(() => import('./pages/profile/Profile'))
 const ResourcesPage = lazy(() => import('./pages/resources/Resources'))
 const ReportsPage = lazy(() => import('./pages/reports/Reports'))
 const NotFoundPage = lazy(() => import('./pages/NotFound'))
+const QRCodeOfflinePage = lazy(() => import('./pages/QRCodeOfflinePage'))
+const OfflineSyncStatusPage = lazy(() => import('./components/common/OfflineSyncStatusPage'))
 
 // دالة مساعدة للتحقق من وجود توكن صالح
 const isAuthenticated = () => {
@@ -70,6 +72,8 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/offline-qr" element={<QRCodeOfflinePage />} />
+            <Route path="/offline-sync" element={<OfflineSyncStatusPage />} />
           </Route>
 
           {/* صفحة الخطأ 404 */}
