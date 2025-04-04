@@ -524,8 +524,10 @@ const CaseDetails = () => {
                   needsSync: false,
                   serialNumber: caseData.serialNumber,
                   technicianName: caseData.technicianName,
+                  technicianId: '101', // نضيف معرف الفني
                   diagnosis: caseData.diagnosis,
-                  solution: caseData.solution
+                  solution: caseData.solution,
+                  caseNumber: `FZ-${new Date().getFullYear()}-${id ? id.padStart(3, '0') : '000'}` // ننشئ رقم حالة
                 }}
               />
             }
@@ -570,8 +572,10 @@ const CaseDetails = () => {
               needsSync: false,
               serialNumber: caseData.serialNumber,
               technicianName: caseData.technicianName,
+              technicianId: '101', // نضيف معرف الفني
               diagnosis: caseData.diagnosis,
-              solution: caseData.solution
+              solution: caseData.solution,
+              caseNumber: `FZ-${new Date().getFullYear()}-${id ? id.padStart(3, '0') : '000'}` // ننشئ رقم حالة
             }}
             inline={true}
             size={250}

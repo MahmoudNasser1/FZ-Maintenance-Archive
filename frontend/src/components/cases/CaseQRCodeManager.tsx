@@ -12,12 +12,16 @@ interface CaseQRCodeManagerProps {
   caseData?: CaseItem;
   size?: number;
   inline?: boolean;
+  scannerOnly?: boolean;
+  onCaseDataScanned?: (caseData: any) => void;
 }
 
 const CaseQRCodeManager: React.FC<CaseQRCodeManagerProps> = ({
   caseData,
   size = 200,
   inline = false,
+  scannerOnly = false,
+  onCaseDataScanned,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -58,6 +62,13 @@ const CaseQRCodeManager: React.FC<CaseQRCodeManagerProps> = ({
       // محاولة تحليل البيانات كـ JSON
       const scannedData = JSON.parse(data);
       
+      // إذا تم توفير دالة استدعاء خارجية للتعامل مع البيانات الممسوحة
+      if (onCaseDataScanned) {
+        onCaseDataScanned(scannedData);
+        setShowScanner(false);
+        return;
+      }
+
       // التحقق مما إذا كانت البيانات تحتوي على معرف الحالة ونوعها
       if (scannedData.type === 'maintenance_case' && scannedData.id) {
         // إغلاق الماسح وتوجيه المستخدم إلى صفحة تفاصيل الحالة
@@ -148,6 +159,24 @@ const CaseQRCodeManager: React.FC<CaseQRCodeManagerProps> = ({
     );
   }
   
+  // إذا كان الوضع هو الماسح فقط
+  if (scannerOnly) {
+    return (
+      <div className="my-4">
+        <QRCodeScanner
+          onScan={handleScan}
+          onError={handleScanError}
+          onClose={() => {}}
+        />
+        {scanError && (
+          <div className="p-4 text-center text-red-500">
+            <p>{scanError}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // عرض أزرار التحكم
   return (
     <>

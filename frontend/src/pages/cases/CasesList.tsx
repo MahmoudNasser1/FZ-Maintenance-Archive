@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
@@ -15,6 +15,7 @@ import Modal from '../../components/ui/Modal'
 // الصفحة الرئيسية لعرض قائمة حالات الصيانة
 const CasesList = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [sortField, setSortField] = useState<keyof Case>('createdAt')
@@ -248,6 +249,35 @@ const CasesList = () => {
           {/* زر إضافة حالة جديدة */}
           <Link to="/cases/new" className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
             <PlusIcon className="h-5 w-5 ml-2" />
+            إضافة حالة جديدة
+          </Link>
+        </div>
+      </div>
+      
+      {/* شريط الفلترة */}
+      <CasesFilterBar
+        onFilterChange={(filterOptions) => {
+          // تحويل FilterOptions إلى الشكل المطلوب
+          setActiveFilters({
+            status: filterOptions.status.length > 0 ? filterOptions.status[0] : undefined,
+            technician: filterOptions.technicians.length > 0 ? filterOptions.technicians[0] : undefined,
+            startDate: filterOptions.dateRange?.startDate,
+            endDate: filterOptions.dateRange?.endDate,
+            clientName: filterOptions.clientName
+          });
+          simulateLoading();
+        }}
+      />
+      
+      {/* جدول الحالات */}
+      <CasesTable
+        cases={paginatedCases}
+        isLoading={isLoading}
+        onSort={handleSort}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        page={currentPage}
+        totalPages={totalPages}
         onPageChange={handlePageChange}
       />
       
@@ -266,13 +296,12 @@ const CasesList = () => {
           
           {/* مكون ماسح رمز QR */}
           <CaseQRCodeManager
-            onScanSuccess={(data) => {
+            caseData={null}
+            scannerOnly={true}
+            onCaseDataScanned={(scannedData) => {
               try {
-                // محاولة تحليل البيانات المقروءة
-                const scannedData = JSON.parse(data);
-                
                 // التحقق من أن البيانات تحتوي على معرف الحالة والنوع الصحيح
-                if (scannedData.id && scannedData.type === 'maintenance_case') {
+                if (scannedData && scannedData.id) {
                   // إغلاق النافذة المنبثقة
                   setShowQRScannerModal(false);
                   
@@ -285,10 +314,6 @@ const CasesList = () => {
                 setScanError(t('qrCode.errorReadingQr'));
               }
             }}
-            onScanError={(error) => {
-              setScanError(error);
-            }}
-            scannerOnly
           />
           
           {scanError && (
