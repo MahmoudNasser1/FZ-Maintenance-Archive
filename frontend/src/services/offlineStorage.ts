@@ -49,21 +49,45 @@ interface AttachmentItem {
 }
 
 // تعريف نوع بيانات حالة المزامنة
-interface SyncStatusItem {
+export interface SyncStatusItem {
   key: string; // 'sync-status' كـ سجل وحيد
   lastSync: string;
   status: 'idle' | 'syncing' | 'error';
   error?: string;
   pendingChanges: number;
+  casesCount?: number; // عدد الحالات المخزنة محلياً
+  notesCount?: number; // عدد الملاحظات المخزنة محلياً
+  attachmentsCount?: number; // عدد المرفقات المخزنة محلياً
+  qrScansCount?: number; // عدد مسح رموز QR في وضع عدم الاتصال
+}
+
+// تعريف تاريخ المزامنة
+export interface SyncHistoryItem {
+  id: string;
+  timestamp: string;
+  success: boolean;
+  itemsSynced: number;
+  message: string;
+}
+
+// تعريف عنصر قائمة انتظار المزامنة
+export interface SyncQueueItem {
+  id: string;
+  itemType: 'case' | 'note' | 'attachment' | 'qr_scan';
+  itemId: number | string;
+  parentId?: number | string; // لربط الملاحظات والمرفقات بالحالة الأم
+  action: 'create' | 'update' | 'delete';
+  data?: any;
+  timestamp: string;
+  status: 'pending' | 'processing' | 'error';
+  errorMessage?: string;
+  retryCount: number;
 }
 
 // تعريف مخطط قاعدة البيانات IndexedDB
-// تعريف مخطط قاعدة البيانات IndexedDB
-// تعريف مطابق لمتطلبات DBSchema
 interface MaintenanceDB extends DBSchema {
   [key: string]: any;
 
-  
   // مخزن الحالات
   cases: {
     key: number;
@@ -100,6 +124,22 @@ interface MaintenanceDB extends DBSchema {
     key: string;
     value: SyncStatusItem;
   };
+  
+  // مخزن تاريخ المزامنة
+  syncHistory: {
+    key: string;
+    value: SyncHistoryItem;
+  };
+  
+  // مخزن قائمة انتظار المزامنة
+  syncQueue: {
+    key: string;
+    value: SyncQueueItem;
+    indexes: {
+      'by-status': string;
+      'by-type': string;
+    };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<MaintenanceDB>> | null = null;
@@ -130,6 +170,14 @@ const initDB = async (): Promise<IDBPDatabase<MaintenanceDB>> => {
           // إنشاء مخزن حالة المزامنة
           db.createObjectStore('syncStatus', { keyPath: 'key' });
           
+          // إنشاء مخزن تاريخ المزامنة
+          db.createObjectStore('syncHistory', { keyPath: 'id' });
+          
+          // إنشاء مخزن قائمة انتظار المزامنة
+          const syncQueueStore = db.createObjectStore('syncQueue', { keyPath: 'id' });
+          syncQueueStore.createIndex('by-status', 'status');
+          syncQueueStore.createIndex('by-type', 'itemType');
+
           // تهيئة سجل حالة المزامنة
           try {
             const syncStatusStore = db.transaction('syncStatus', 'readwrite').objectStore('syncStatus');
@@ -153,24 +201,83 @@ const initDB = async (): Promise<IDBPDatabase<MaintenanceDB>> => {
 
 // تحديث حالة المزامنة
 const updateSyncStatus = async (status: 'idle' | 'syncing' | 'error', error?: string) => {
-  const db = await initDB();
-  const tx = db.transaction('syncStatus', 'readwrite');
-  const store = tx.objectStore('syncStatus');
-  
-  // الحصول على حالة المزامنة الحالية
-  const currentStatus = await store.get('sync-status');
-  
-  // تحديث السجل
-  if (currentStatus) {
-    await store.put({
-      ...currentStatus,
-      status,
-      error,
-      ...(status === 'idle' && { lastSync: new Date().toISOString() })
-    });
+  try {
+    const db = await initDB();
+    const tx = db.transaction('syncStatus', 'readwrite');
+    
+    // الحصول على سجل حالة المزامنة الحالي إن وجد
+    let syncStatus = await tx.store.get('sync-status');
+    
+    if (!syncStatus) {
+      // إنشاء سجل جديد إذا لم يكن موجوداً
+      syncStatus = {
+        key: 'sync-status',
+        lastSync: new Date().toISOString(),
+        status: status,
+        pendingChanges: 0,
+        casesCount: 0,
+        notesCount: 0,
+        attachmentsCount: 0,
+        qrScansCount: 0
+      };
+    } else {
+      // تحديث السجل الموجود
+      syncStatus.status = status;
+      
+      if (status === 'idle') {
+        syncStatus.lastSync = new Date().toISOString();
+      }
+    }
+    
+    if (error) {
+      syncStatus.error = error;
+    } else if (status === 'idle') {
+      // إزالة أي خطأ سابق عند العودة إلى الحالة العادية
+      delete syncStatus.error;
+    }
+    
+    await tx.store.put(syncStatus);
+    await tx.done;
+    
+    // تحديث الإحصائيات
+    if (status === 'idle') {
+      await updateStorageStats();
+    }
+  } catch (error) {
+    console.error('Error updating sync status:', error);
   }
-  
-  await tx.done;
+};
+
+// تحديث إحصائيات التخزين
+const updateStorageStats = async () => {
+  try {
+    const db = await initDB();
+    
+    // عد العناصر في كل مخزن
+    const casesCount = await db.count('cases');
+    const notesCount = await db.count('notes');
+    const attachmentsCount = await db.count('attachments');
+    
+    // الحصول على عدد عمليات مسح رموز QR غير المتزامنة
+    const qrScansCount = (await (await db.getAll('syncQueue'))
+      .filter(item => item.itemType === 'qr_scan')).length;
+    
+    // تحديث حالة المزامنة بالأعداد الجديدة
+    const tx = db.transaction('syncStatus', 'readwrite');
+    let syncStatus = await tx.store.get('sync-status');
+    
+    if (syncStatus) {
+      syncStatus.casesCount = casesCount;
+      syncStatus.notesCount = notesCount;
+      syncStatus.attachmentsCount = attachmentsCount;
+      syncStatus.qrScansCount = qrScansCount;
+      
+      await tx.store.put(syncStatus);
+      await tx.done;
+    }
+  } catch (error) {
+    console.error('Error updating storage stats:', error);
+  }
 };
 
 // الحصول على حالة المزامنة الحالية
@@ -755,6 +862,146 @@ const setupConnectionMonitoring = (onOffline: () => void, onOnline: () => void) 
   };
 };
 
+// إضافة بيانات مسح رمز QR إلى قائمة انتظار المزامنة
+const addQRScanToSyncQueue = async (caseId: number | string, caseName: string, offline: boolean) => {
+  if (!offline) return; // لا داعي للإضافة إذا كان المستخدم متصلاً
+  
+  try {
+    const db = await initDB();
+    const tx = db.transaction('syncQueue', 'readwrite');
+    
+    const qrScanItem: SyncQueueItem = {
+      id: `qr-scan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      itemType: 'qr_scan',
+      itemId: caseId,
+      action: 'create',
+      data: { caseName, scanTime: new Date().toISOString() },
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      retryCount: 0
+    };
+    
+    await tx.store.add(qrScanItem);
+    await tx.done;
+    
+    // تحديث إحصائيات التخزين
+    await updateStorageStats();
+    
+    return qrScanItem.id;
+  } catch (error) {
+    console.error('Error adding QR scan to sync queue:', error);
+    return null;
+  }
+};
+
+// الحصول على عناصر قائمة انتظار المزامنة
+const getSyncQueueItems = async (): Promise<SyncQueueItem[]> => {
+  try {
+    const db = await initDB();
+    return await db.getAll('syncQueue');
+  } catch (error) {
+    console.error('Error getting sync queue items:', error);
+    return [];
+  }
+};
+
+// إضافة عنصر لتاريخ المزامنة
+const addToSyncHistory = async (success: boolean, itemsSynced: number, message: string): Promise<string> => {
+  try {
+    const db = await initDB();
+    const tx = db.transaction('syncHistory', 'readwrite');
+    
+    const historyItem: SyncHistoryItem = {
+      id: `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      success,
+      itemsSynced,
+      message
+    };
+    
+    await tx.store.add(historyItem);
+    await tx.done;
+    
+    return historyItem.id;
+  } catch (error) {
+    console.error('Error adding to sync history:', error);
+    return '';
+  }
+};
+
+// الحصول على تاريخ المزامنة
+const getSyncHistory = async (limit: number = 20): Promise<SyncHistoryItem[]> => {
+  try {
+    const db = await initDB();
+    const allHistory = await db.getAll('syncHistory');
+    
+    // ترتيب حسب الطابع الزمني بشكل تنازلي والحد بالعدد المطلوب
+    return allHistory
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, limit);
+  } catch (error) {
+    console.error('Error getting sync history:', error);
+    return [];
+  }
+};
+
+// مسح أخطاء المزامنة
+const clearSyncErrors = async (): Promise<boolean> => {
+  try {
+    const db = await initDB();
+    
+    // إزالة العناصر ذات الحالة 'error' من قائمة انتظار المزامنة
+    const tx = db.transaction('syncQueue', 'readwrite');
+    const index = tx.store.index('by-status');
+    const errorItems = await index.getAll('error');
+    
+    for (const item of errorItems) {
+      await tx.store.delete(item.id);
+    }
+    
+    await tx.done;
+    
+    // تحديث حالة المزامنة
+    await updateSyncStatus('idle');
+    await updatePendingChangesCount();
+    
+    return true;
+  } catch (error) {
+    console.error('Error clearing sync errors:', error);
+    return false;
+  }
+};
+
+// إضافة تاريخ المزامنة والإحصائيات في نهاية المزامنة
+const enhancedSynchronize = async (apiBaseUrl: string, authToken: string) => {
+  try {
+    await updateSyncStatus('syncing');
+    
+    // استدعاء وظيفة المزامنة الأصلية
+    const result = await synchronize(apiBaseUrl, authToken);
+    
+    // إضافة نتيجة المزامنة إلى التاريخ
+    await addToSyncHistory(
+      result.success, 
+      await updatePendingChangesCount(),
+      result.message
+    );
+    
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await updateSyncStatus('error', errorMessage);
+    await addToSyncHistory(false, 0, errorMessage);
+    
+    return {
+      success: false,
+      message: errorMessage
+    };
+  } finally {
+    await updateStorageStats();
+  }
+};
+
 // تصدير الوظائف الرئيسية للاستخدام في باقي التطبيق
 export {
   initDB,
@@ -772,7 +1019,13 @@ export {
   getSyncStatus,
   updateSyncStatus,
   updatePendingChangesCount,
-  setupConnectionMonitoring
+  setupConnectionMonitoring,
+  getSyncHistory,
+  getSyncQueueItems,
+  addQRScanToSyncQueue,
+  clearSyncErrors,
+  updateStorageStats,
+  enhancedSynchronize as synchronizeWithTracking
 };
 
-export type { NoteItem, AttachmentItem, SyncStatusItem };
+export type { NoteItem, AttachmentItem };
