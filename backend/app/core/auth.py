@@ -44,6 +44,51 @@ def get_current_user(
     return user
 
 
+async def get_current_user_from_token(token: str) -> User:
+    """
+    Asynchronous function to get the current user from token for WebSocket connections
+    
+    This is a special version of get_current_user that doesn't use FastAPI dependency injection,
+    allowing it to be used in WebSocket endpoints.
+    
+    Args:
+        token: JWT token
+
+    Returns:
+        User: User object if token is valid
+
+    Raises:
+        Exception: If token is invalid or user not found
+    """
+    from app.core.database import SessionLocal
+    
+    try:
+        # Validate JWT token
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise ValueError("Invalid authentication credentials")
+        token_data = TokenData(user_id=UUID4(user_id))
+        
+        # Get user from database
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == token_data.user_id).first()
+            if user is None:
+                raise ValueError("User not found")
+            if not user.is_active:
+                raise ValueError("Inactive user")
+            return user
+        finally:
+            db.close()
+    except JWTError:
+        raise ValueError("Invalid authentication token")
+    except Exception as e:
+        raise ValueError(f"Authentication error: {str(e)}")
+
+
 def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:

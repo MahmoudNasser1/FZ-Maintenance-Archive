@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import UUID
+from datetime import datetime, timedelta
 
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.models.user import User
-from app.models.activity import Activity
+from app.crud.activity import activity
 from app.schemas.activity import Activity as ActivitySchema, ActivityWithUser
-from app.services.activity_service import get_case_activities
+from app.services.activity_service import get_case_activities, get_recent_activities, get_daily_activity_counts
 
 router = APIRouter()
 
@@ -16,20 +17,26 @@ router = APIRouter()
 @router.get("/", response_model=List[ActivityWithUser])
 async def read_activities(
     case_id: Optional[UUID] = None,
+    performed_by: Optional[UUID] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Retrieve activities with optional filtering by case_id.
+    استرجاع سجلات الأنشطة مع إمكانية التصفية حسب مختلف المعايير.
     """
-    if case_id:
-        activities = get_case_activities(db, case_id, skip, limit)
-    else:
-        activities = db.query(Activity).order_by(Activity.created_at.desc()).offset(skip).limit(limit).all()
-    
-    return activities
+    return activity.get_multi(
+        db=db,
+        skip=skip,
+        limit=limit,
+        case_id=case_id,
+        performed_by=performed_by,
+        start_date=start_date,
+        end_date=end_date
+    )
 
 
 @router.get("/{activity_id}", response_model=ActivityWithUser)
@@ -39,18 +46,15 @@ async def read_activity(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Get activity by ID.
+    الحصول على نشاط محدد بواسطة المعرف.
     """
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
-    if not activity:
-        raise HTTPException(
-            status_code=404,
-            detail="Activity not found",
-        )
-    return activity
+    db_activity = activity.get(db=db, activity_id=activity_id)
+    if not db_activity:
+        raise HTTPException(status_code=404, detail="النشاط غير موجود")
+    return db_activity
 
 
-@router.get("/by-case/{case_id}", response_model=List[ActivityWithUser])
+@router.get("/case/{case_id}", response_model=List[ActivityWithUser])
 async def read_activities_by_case(
     case_id: UUID,
     skip: int = 0,
@@ -59,13 +63,17 @@ async def read_activities_by_case(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Get activities for a specific case.
+    الحصول على سجلات الأنشطة لحالة معينة.
     """
-    activities = get_case_activities(db, case_id, skip, limit)
-    return activities
+    return activity.get_multi(
+        db=db,
+        case_id=case_id,
+        skip=skip,
+        limit=limit
+    )
 
 
-@router.get("/by-user/{user_id}", response_model=List[ActivityWithUser])
+@router.get("/user/{user_id}", response_model=List[ActivityWithUser])
 async def read_activities_by_user(
     user_id: UUID,
     skip: int = 0,
@@ -74,26 +82,54 @@ async def read_activities_by_user(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Get activities performed by a specific user.
+    الحصول على سجلات الأنشطة المنفذة بواسطة مستخدم محدد.
     """
-    activities = db.query(Activity).filter(
-        Activity.performed_by == user_id
-    ).order_by(Activity.created_at.desc()).offset(skip).limit(limit).all()
+    # التحقق من الصلاحيات: فقط المستخدم نفسه أو المدير يمكنه عرض أنشطة المستخدم
+    if user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ليس لديك صلاحية للوصول إلى سجلات أنشطة هذا المستخدم"
+        )
     
-    return activities
+    return activity.get_multi(
+        db=db,
+        performed_by=user_id,
+        skip=skip,
+        limit=limit
+    )
 
 
-@router.get("/summary/by-case/{case_id}", response_model=List[ActivityWithUser])
+@router.get("/case/{case_id}/summary", response_model=List[ActivityWithUser])
 async def get_case_activity_summary(
     case_id: UUID,
+    days: int = 7,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Get a summary of activities for a case (limited to most important activities).
+    الحصول على ملخص لأنشطة حالة معينة (مقتصراً على أهم الأنشطة الأخيرة).
     """
-    # For a real application, we would implement logic to identify and return
-    # the most important activities for the case. For now, we'll just return
-    # the 10 most recent activities.
-    activities = get_case_activities(db, case_id, 0, 10)
-    return activities
+    return get_recent_activities(
+        db=db,
+        case_id=case_id,
+        days=days,
+        limit=limit
+    )
+
+
+@router.get("/stats/daily", response_model=Dict[str, int])
+async def get_activity_stats(
+    days: int = 30,
+    case_id: Optional[UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    الحصول على إحصائيات الأنشطة اليومية.
+    """
+    return get_daily_activity_counts(
+        db=db,
+        days=days,
+        case_id=case_id
+    )
