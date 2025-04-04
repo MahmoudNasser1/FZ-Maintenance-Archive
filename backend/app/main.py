@@ -29,8 +29,8 @@ if settings.BACKEND_CORS_ORIGINS:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # تخصيص توثيق OpenAPI
-app.openapi = get_fz_openapi_schema
-customize_swagger_ui()
+app.openapi = lambda: get_fz_openapi_schema(app)
+customize_swagger_ui(app)
 
 # Health check endpoint
 @app.get("/health")

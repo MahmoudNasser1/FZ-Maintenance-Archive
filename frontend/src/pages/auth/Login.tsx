@@ -38,7 +38,7 @@ const Login = () => {
       // ثم تخزين رمز الوصول (token) في التخزين المحلي
       
       // محاكاة نجاح تسجيل الدخول
-      if (values.username === 'admin' && values.password === 'password') {
+      if (values.username === 'admin' && values.password === 'admin123') {
         localStorage.setItem('accessToken', 'sample-token-value')
         navigate('/dashboard')
       } else {

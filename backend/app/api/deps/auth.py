@@ -17,6 +17,19 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
+# Optional OAuth2 scheme for endpoints that don't require authentication
+class OAuth2PasswordBearerOptional(OAuth2PasswordBearer):
+    async def __call__(self, request):
+        try:
+            return await super().__call__(request)
+        except HTTPException:
+            return None
+
+
+oauth2_scheme_optional = OAuth2PasswordBearerOptional(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login"
+)
+
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
@@ -132,17 +145,3 @@ def optional_current_user(
         return None
     
     return db_user
-
-
-# Optional OAuth2 scheme for endpoints that don't require authentication
-class OAuth2PasswordBearerOptional(OAuth2PasswordBearer):
-    async def __call__(self, request):
-        try:
-            return await super().__call__(request)
-        except HTTPException:
-            return None
-
-
-oauth2_scheme_optional = OAuth2PasswordBearerOptional(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
-)

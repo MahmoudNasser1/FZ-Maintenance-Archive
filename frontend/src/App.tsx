@@ -64,7 +64,6 @@ function App() {
               <MainLayout />
             </ProtectedRoute>
           }>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/cases" element={<CasesListPage />} />
             <Route path="/cases/new" element={<NewCasePage />} />
@@ -75,6 +74,9 @@ function App() {
             <Route path="/offline-qr" element={<QRCodeOfflinePage />} />
             <Route path="/offline-sync" element={<OfflineSyncStatusPage />} />
           </Route>
+
+          {/* توجيه المستخدم إلى صفحة تسجيل الدخول إذا حاول الوصول للصفحة الرئيسية */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* صفحة الخطأ 404 */}
           <Route path="*" element={<NotFoundPage />} />

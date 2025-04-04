@@ -4,11 +4,11 @@ from fastapi.openapi.models import (
 )
 from fastapi.openapi.utils import get_openapi
 from pydantic import Field
+from fastapi import FastAPI
 
 from app.core.config import settings
-from app.main import app
 
-def get_fz_openapi_schema():
+def get_fz_openapi_schema(app: FastAPI):
     """
     تخصيص مخطط OpenAPI لتوثيق الـ API الخاص بنظام أرشيف حالات الصيانة
     
@@ -185,7 +185,7 @@ def get_fz_openapi_schema():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
-def customize_swagger_ui():
+def customize_swagger_ui(app: FastAPI):
     """
     تخصيص واجهة Swagger UI
     """

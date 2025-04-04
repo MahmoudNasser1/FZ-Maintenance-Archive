@@ -1,14 +1,19 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
+from pathlib import Path
 import contextlib
 
 from app.core.config import settings
 
-# Create SQLAlchemy engine
-# Convert PostgresDsn to string to avoid compatibility issues
+# التحقق مما إذا كان يستخدم قاعدة بيانات SQLite
 database_url = str(settings.DATABASE_URL)
-engine = create_engine(database_url)
+if database_url.startswith("sqlite"):
+    engine = create_engine(database_url, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(database_url)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for all models

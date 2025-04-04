@@ -19,7 +19,6 @@ const queryClient = new QueryClient({
 })
 
 // تحميل الخط العربي من Google Fonts
-// قمنا بإضافة هذا هنا لضمان تحميل الخط قبل عرض واجهة المستخدم
 const loadFonts = () => {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -29,6 +28,7 @@ const loadFonts = () => {
 
 loadFonts();
 
+// تثبيت التطبيق على عنصر الجذر
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

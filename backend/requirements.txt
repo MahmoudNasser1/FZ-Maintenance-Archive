@@ -16,4 +16,4 @@ python-dotenv==1.0.0
 websockets==11.0.3
 uuid==1.30
 qrcode==7.4.2
-pillow==10.1.0
+pillow==9.5.0
